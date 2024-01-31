@@ -22,17 +22,19 @@ def validate_address(input_file, abp_file, output_file):
     # Load relevant abp data.
     abp_df = pd.read_csv(abp_data, encoding='utf-8').rename(columns={'POSTCODE':'Postcode'})[['Postcode', 'STREET_NAME']].drop_duplicates()
 
-    # Merge data frames on postcode and set 'Street_In_Postcode' True where street name in address, 'No data available'
-    # where postcode is missing from abp data, 'No street in address' where street is blank in abp data, False otherwise.
-    # Vectorized for efficiency.
-
+    # Merge data frames on postcode
     merged_df = pd.merge(input_df, abp_df, how='left', on='Postcode', indicator=True)
+
+    # Remove uppercase, replace key words with abbreviations to increase match rate
     merged_df['STREET_NAME'] = merged_df['STREET_NAME'].str.lower()
     merged_df['Address'] = merged_df['Address'].str.lower()
     for old, new in abbreviations_dict.items():
         merged_df['Address'] = merged_df['Address'].str.replace(old, new)
         merged_df['STREET_NAME'] = merged_df['STREET_NAME'].str.replace(old, new)
-    merged_df['Street_In_Postcode'] = np.vectorize(lambda street, address: street.lower() in address.lower())(merged_df['STREET_NAME'].astype(str), merged_df['Address'])
+
+    # Set 'Street_In_Postcode' True where street name in address. Vectorized for efficiency.
+    merged_df['Street_In_Postcode'] = np.vectorize(lambda street, address: street in address)(merged_df['STREET_NAME'].astype(str), merged_df['Address'])
+
     #merged_df['Street_In_Postcode'] = np.where(merged_df['STREET_NAME'].isnull(), 'No street in address',merged_df['Street_In_Postcode'])
     #merged_df['Street_In_Postcode'] = np.where(merged_df['_merge']=='left_only', 'No data available', merged_df['Street_In_Postcode'])
 
