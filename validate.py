@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 
+abbreviations_dict = {'road': 'rd', 'street': 'st', 'avenue': 'ave'}
+
 def validate_address(input_file, abp_file, output_file):
 
     """
@@ -16,6 +18,7 @@ def validate_address(input_file, abp_file, output_file):
     input_df = pd.read_csv(input_file, encoding='utf-8', dtype=str).fillna('')
     input_df['Address'] = input_df[[f'Address_Line_{i}' for i in range(1, 6)]].astype(str).agg(' '.join, axis=1)
 
+
     # Load relevant abp data.
     abp_df = pd.read_csv(abp_data, encoding='utf-8').rename(columns={'POSTCODE':'Postcode'})[['Postcode', 'STREET_NAME']].drop_duplicates()
 
@@ -24,9 +27,14 @@ def validate_address(input_file, abp_file, output_file):
     # Vectorized for efficiency.
 
     merged_df = pd.merge(input_df, abp_df, how='left', on='Postcode', indicator=True)
+    merged_df['STREET_NAME'] = merged_df['STREET_NAME'].str.lower()
+    merged_df['Address'] = merged_df['Address'].str.lower()
+    for old, new in abbreviations_dict.items():
+        merged_df['Address'] = merged_df['Address'].str.replace(old, new)
+        merged_df['STREET_NAME'] = merged_df['STREET_NAME'].str.replace(old, new)
     merged_df['Street_In_Postcode'] = np.vectorize(lambda street, address: street.lower() in address.lower())(merged_df['STREET_NAME'].astype(str), merged_df['Address'])
-    merged_df['Street_In_Postcode'] = np.where(merged_df['STREET_NAME'].isnull(), 'No street in address',merged_df['Street_In_Postcode'])
-    merged_df['Street_In_Postcode'] = np.where(merged_df['_merge']=='left_only', 'No data available', merged_df['Street_In_Postcode'])
+    #merged_df['Street_In_Postcode'] = np.where(merged_df['STREET_NAME'].isnull(), 'No street in address',merged_df['Street_In_Postcode'])
+    #merged_df['Street_In_Postcode'] = np.where(merged_df['_merge']=='left_only', 'No data available', merged_df['Street_In_Postcode'])
 
 
     # Drop duplicates based on 'Address' and keep the first occurrence (which has 'True' prioritized)
@@ -34,8 +42,9 @@ def validate_address(input_file, abp_file, output_file):
     merged_df.drop_duplicates(subset=['Address'], inplace=True)
     merged_df.sort_index(inplace=True)
 
-    # Output csv.
-    merged_df.drop(['Address', '_merge'], axis=True, inplace=True)
+    # Output csv, mapping booleans to Yes/No as required.
+    merged_df['Street_In_Postcode'] = merged_df['Street_In_Postcode'].map({True: 'Yes', False: 'No'})
+    #merged_df.drop(['Address', '_merge', 'STREET_NAME'], axis=True, inplace=True)
     merged_df.to_csv(output_file, index=False, encoding='utf-8')
 
 
