@@ -46,7 +46,7 @@ def validate_address(input_file, abp_file, output_file):
 
     # Output csv, mapping booleans to Yes/No as required.
     merged_df['Street_In_Postcode'] = merged_df['Street_In_Postcode'].map({True: 'Yes', False: 'No'})
-    #merged_df.drop(['Address', '_merge', 'STREET_NAME'], axis=True, inplace=True)
+    merged_df.drop(['Address', '_merge', 'STREET_NAME'], axis=True, inplace=True)
     merged_df.to_csv(output_file, index=False, encoding='utf-8')
 
 
